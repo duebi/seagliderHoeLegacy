@@ -110,7 +110,7 @@ sgd.lat = reshape(DG.lat,ld,nd);
 sgd.s = reshape(DG.salin,ld,nd);
 sgd.t = reshape(DG.tempc,ld,nd);
 sgd.sig = reshape(DG.sigmath0,ld,nd);
-sgd.o = reshape(DG.oxygen,ld,nd);
+sgd.o = reshape(DG.oxygen,ld,nd).*((sgd.sig+1000)/1000); % From umol kg-1 to umol L-1
 sgd.opt = reshape(DG.optode_oxygen,ld,nd); % The dphase is missing for this cruise, so I had to use the data that have been computed internally
 sgd.chl1 = reshape(DG.chl1,ld,nd);
 sgd.chl2 = reshape(DG.chl2,ld,nd);
@@ -118,12 +118,16 @@ sgd.bbp470 = reshape(DG.bbp470,ld,nd);
 sgd.bbp660 = reshape(DG.bbp660,ld,nd);
 sgd.bbp700 = reshape(DG.bbp700,ld,nd);
 sgd.cdom = reshape(DG.cdom,ld,nd);
+sgd.Properties.VariableUnits = {'m','Matlab date (HST)','Decimal day (HST)','Degrees E','Degrees N'...
+    'Absolute salinity', 'degrees Celsius', 'kg m-3','umol L-1','umol L-1','rel. units','rel. units' ...
+    'm-1','m-1','m-1', 'rel. units'}
     % Dive information
 dived.lon = nanmean(sgd.lon);
 dived.lat = nanmean(sgd.lat);
 dived.dive = d_range(1):d_range(2);
 dived.date = nanmean(sgd.date);
 dived.hour = dived.date - fix(dived.date);
+dived.units = {'lon: Degrees E','lat: Degrees N','dive: #','date: Matlab date (HST)','hour: Decimal day (HST)',}
 
 % Save new variables sgd and dived
     save(datafile,'sgd','dived')
