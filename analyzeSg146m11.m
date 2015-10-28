@@ -12,9 +12,11 @@ clear upth sgpath mission
 
 load sg146m11data
 load ../ccar2015
+load ../aviso2015
 
 % interpolate ssh on each glider dive
 sshsg = interp3(ssh.lon_g,ssh.lat_g,ssh.date_g,ssh.ssh,dived.lon,dived.lat,dived.date);
+slasg = interp3(sla.lon_g,sla.lat_g,sla.date_g,sla.sla,dived.lon,dived.lat,dived.date);
 
 % indeces of different transects
 merid1 = dived.dive >= 50 & dived.dive <= 137 & dived.dive ~= 106; % first meridional transect
@@ -28,12 +30,12 @@ merid2 = dived.dive >= 265 & dived.dive <= 318; % second meridional transect
 %% Long zonal transect
 ind_part = zonal1;
 subplot(7,1,2:3)
-contourf(dived.lon(ind_part),sgd.depth,sgd.o(:,ind_part),140:2.5:220,'edgecolor','none')
+contourf(dived.lon(ind_part),sgd.depth,sgd.o(:,ind_part),140:2.5:230,'edgecolor','none')
 set(gca,'ydir','rev','Fontsize',16)
 ylim([0 350])
 hold on, contour(dived.lon(ind_part),sgd.depth,sgd.sig(:,ind_part),[23.5 24.3 25.3],'k--'), hold off
 xlabel('Longitude E'),ylabel('Depth (m)')
-caxis([177.5 215])
+caxis([190 224])
 cb = colorbar, title(cb,'Oxygen (umol L-1)'), set(cb,'Fontsize',16)
 subplot(7,1,4:5)
 contourf(dived.lon(ind_part),sgd.depth,sgd.s(:,ind_part),30:0.05:36,'edgecolor','none')
@@ -57,20 +59,21 @@ caxis([5e-4 4e-3])
 cb = colorbar, title(cb,'bbp 470 nm (m-1)'), set(cb,'Fontsize',16)
 pp = get(gca,'Position')
 subplot(7,1,1)
-plot(dived.lon(ind_part),sshsg(ind_part),'k'), xlabel('Longitude E'),ylabel('SSHA (cm)')
+plot(dived.lon(ind_part),sshsg(ind_part),'k--',dived.lon(ind_part),slasg(ind_part)*100,'k-'), xlabel('Longitude E'),ylabel('SSHA/SLA (cm)')
 set(gca,'Fontsize',16,'box','off','Color','none')
 xlim([min(dived.lon(ind_part)) max(dived.lon(ind_part))])
 pp1 = get(gca,'Position'), set(gca,'Position',[pp(1) pp1(2) pp(3) pp1(4)])
+lg = legend('ccar','aviso'), set(lg,'Fontsize',16), legend('boxoff')
 
 %% Long meridional transect
 ind_part = merid1;
 subplot(7,1,2:3)
-contourf(dived.lat(ind_part),sgd.depth,sgd.o(:,ind_part),140:2.5:220,'edgecolor','none')
+contourf(dived.lat(ind_part),sgd.depth,sgd.o(:,ind_part),140:2.5:230,'edgecolor','none')
 set(gca,'ydir','rev','Fontsize',16)
 ylim([0 350])
 hold on, contour(dived.lat(ind_part),sgd.depth,sgd.sig(:,ind_part),[23.5 24.3 25.3],'k--'), hold off
 xlabel('Latitude N'),ylabel('Depth (m)')
-caxis([177.5 215])
+caxis([192 227])
 cb = colorbar, title(cb,'Oxygen (umol L-1)'), set(cb,'Fontsize',16)
 subplot(7,1,4:5)
 contourf(dived.lat(ind_part),sgd.depth,sgd.s(:,ind_part),30:0.05:36,'edgecolor','none')
@@ -94,7 +97,8 @@ caxis([5e-4 4e-3])
 cb = colorbar, title(cb,'bbp 470 nm (m-1)'), set(cb,'Fontsize',16)
 pp = get(gca,'Position')
 subplot(7,1,1)
-plot(dived.lat(ind_part),sshsg(ind_part),'k'), xlabel('Longitude E'),ylabel('SSHA (cm)')
+plot(dived.lat(ind_part),sshsg(ind_part),'k--',dived.lat(ind_part),slasg(ind_part)*100,'k-'), xlabel('Longitude E'),ylabel('SSHA/SLA (cm)')
 set(gca,'Fontsize',16,'box','off','Color','none')
 xlim([min(dived.lat(ind_part)) max(dived.lat(ind_part))])
 pp1 = get(gca,'Position'), set(gca,'Position',[pp(1) pp1(2) pp(3) pp1(4)])
+lg = legend('ccar','aviso'), set(lg,'Fontsize',16), legend('boxoff')

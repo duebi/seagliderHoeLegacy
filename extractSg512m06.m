@@ -9,7 +9,7 @@ d_range = [2 581];
 upth = userpath; 
 sgpath =  [upth(1:end-1) '/Data/seaglider/' mission];
 clear upth
-%load oxy_cal
+load([sgpath '/oxy_cal'])
 %load pcpn_cal
 
 nd = length(d_range(1):d_range(2)); % total number of dives
@@ -81,12 +81,11 @@ clear chi_p betasw470d betasw470u betasw650d betasw650u betasw700d betasw700u
 
 % 5. Save concatenated dive file
 save([mission '_cat'],'UP','DWN');
-
-%% 
+ 
 % 6. Put data on a regular grid
 datafile = [mission(1:5) mission(7)  mission(8:9) 'data'];
 depth = 2:2:1000; ld = length(depth);
-[UG,DG] = sg_grid(['./' mission '_cat'],depth,'gridVar','vmdepth','diveRange',d_range(1):d_range(2),'outVars',{'lon','lat','daten','salin','tempc','sigmath0','oxygen','optode_dphase_oxygen','optode_oxygen','chl1','chl2','bbp470','bbp650','bbp700','cdom'});
+[UG,DG] = sg_grid([sgpath '/' mission '_cat'],depth,'gridVar','vmdepth','diveRange',d_range(1):d_range(2),'outVars',{'lon','lat','daten','salin','tempc','sigmath0','oxygen','optode_dphase_oxygen','optode_oxygen','chl1','chl2','bbp470','bbp650','bbp700','cdom'});
     % Build new table for downcast
     % Time & Position
 sgd = table(depth',reshape(DG.daten,ld,nd)); sgd.Properties.VariableNames = ({'depth','date'});
@@ -117,5 +116,52 @@ dived.date = nanmean(sgd.date);
 dived.hour = dived.date - fix(dived.date);
 dived.units = {'lon: Degrees E','lat: Degrees N','dive: #','date: Matlab date (HST)','hour: Decimal day (HST)',};
 
+% 7. Oxygen calibration on Winkler measurements
+    % build comparison array
+o2_comp = oxy_cal;
+o2_comp.dist = NaN(height(oxy_cal),1);
+o2_comp.lag = NaN(height(oxy_cal),1);
+o2_comp.zdist = NaN(height(oxy_cal),1);
+o2_comp.optode = NaN(height(oxy_cal),1);
+o2_comp.sbe43 = NaN(height(oxy_cal),1);
+for i = 1:height(oxy_cal)
+    [o2_comp.lag(i),ind_t] = min(abs(dived.date-o2_comp.date(i)));
+    o2_comp.dist(i) = vdist(dived.lat(ind_t),dived.lon(ind_t),o2_comp.lat(i),-o2_comp.lon(i));
+    [o2_comp.zdist(i),ind_z] = min(abs(sgd.depth-o2_comp.depth(i)));
+    o2_comp.optode(i) = sgd.opt(ind_z,ind_t);
+    o2_comp.sbe43(i) = sgd.o(ind_z,ind_t);
+    clear ind_t ind_z
+end
+ind_good = o2_comp.dist<10000 & o2_comp.lag<0.2 & o2_comp.zdist<10;
+ind_correction = o2_comp.dist<10000 & o2_comp.lag<0.2 & o2_comp.zdist<10 & o2_comp.depth<100;
+    % Compute offset in the upper 100 m and correct oxygen from sensors
+optode_offset = nanmedian(o2_comp.oxygen(ind_correction)-o2_comp.optode(ind_correction));
+sbe43_offset = nanmedian(o2_comp.oxygen(ind_correction)-o2_comp.sbe43(ind_correction));
+sgd.opt = sgd.opt + optode_offset;
+sgd.o = sgd.o + sbe43_offset;
+    % Plot comparison results
+%{
+subplot(2,2,1)
+scatter(o2_comp.oxygen(ind_good),o2_comp.optode(ind_good),200,o2_comp.depth(ind_good),'.')
+caxis([0 500]), colormap(jet), cb = colorbar, title(cb,'depth (m)','Fontsize',16)
+ylim([80 240]),xlim([80 240])
+hold on, plot([80 240],[80 240],'k--'), hold off
+set(gca,'Fontsize',16), xlabel('Winkler oxygen (umol L-1)'), ylabel('Optode oxygen (umol L-1)')
+subplot(2,2,2)
+scatter(o2_comp.oxygen(ind_good),o2_comp.sbe43(ind_good),200,o2_comp.depth(ind_good),'.')
+caxis([0 500]), colormap(jet), cb = colorbar, title(cb,'depth (m)','Fontsize',16)
+ylim([80 240]),xlim([80 240])
+hold on, plot([80 240],[80 240],'k--'), hold off
+set(gca,'Fontsize',16), xlabel('Winkler oxygen (umol L-1)'), ylabel('SBE43 oxygen (umol L-1)')
+subplot(2,2,3)
+hist(o2_comp.oxygen(ind_correction)-o2_comp.optode(ind_correction),20)
+set(gca,'Fontsize',16), xlabel('Winkler - optode (umol L-1)'), ylabel('n. obs.')
+title('upper 100m')
+subplot(2,2,4)
+hist(o2_comp.oxygen(ind_correction)-o2_comp.sbe43(ind_correction),20)
+set(gca,'Fontsize',16), xlabel('Winkler - SBE43 (umol L-1)'), ylabel('n. obs.')
+title('upper 100m')
+%}
+
 % Save new variables sgd and dived
-    %save(datafile,'sgd','dived')
+    save(datafile,'sgd','dived')
