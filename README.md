@@ -1,6 +1,6 @@
 # seagliderHoeLegacy
 
-This repository contains MATLAB routines to extract and analyze two seaglider missions from summer 2015 related to the Hoe Legacy 2 cruises. Missions are g146_m11 and sg512_06.
+This repository contains MATLAB routines to extract and analyze two seaglider missions from summer 2015 related to the Hoe Legacy 2 cruises. Missions are g146_m11 and sg512_m06.
 
 Routines in the main folder require the private routines for seaglider data extraction at https://github.com/whoi-glider/glider-kit  (David Nicholson). Other Matlab functions that are called in the scripts are found in the common/ subfolder:
 - betasw_ZHH2009: computes scattering by pure seawater (by Xiaodong Zhang)
@@ -14,4 +14,3 @@ The data/ subfolder contains:
 - oxy_cal.mat: Winkler oxygen measurements from several HOT cruises. These data are used for sensor calibration.
 
 Benedetto Barone - Oct 2015
-# thermalWind_hl2
