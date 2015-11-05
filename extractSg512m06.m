@@ -106,7 +106,7 @@ sgd.bbp650 = reshape(DG.bbp650,ld,nd);
 sgd.bbp700 = reshape(DG.bbp700,ld,nd);
 sgd.cdom = reshape(DG.cdom,ld,nd);
 sgd.Properties.VariableUnits = {'m','Matlab date (HST)','Decimal day (HST)','Degrees E','Degrees N'...
-    'Absolute salinity', 'degrees Celsius', 'kg m-3','umol L-1','umol L-1','rel. units','rel. units' ...
+    'g kg-1 (Absolute Salinity)', 'degrees Celsius', 'kg m-3','umol L-1','umol L-1','rel. units','rel. units' ...
     'm-1','m-1','m-1', 'rel. units'};
     % Dive information
 dived.lon = nanmean(sgd.lon);
@@ -163,5 +163,37 @@ set(gca,'Fontsize',16), xlabel('Winkler - SBE43 (umol L-1)'), ylabel('n. obs.')
 title('upper 100m')
 %}
 
-% Save new variables sgd and dived
-    save(datafile,'sgd','dived')
+% Compute characteristics on isopycnal levels (average sigma at depth bins)
+    % compute average sigma at depth bins
+sig_grid = nanmean(sgd.sig,2);
+sig_grid = sort(sig_grid);
+    % initialize table of isopycnal data
+isod = sgd;
+isod.sig = sig_grid;
+isod.date = NaN*isod.date; isod.hour = NaN*isod.hour; isod.lat = NaN*isod.lat; isod.lon = NaN*isod.lon;
+isod.s = NaN*isod.s; isod.t = NaN*isod.t; isod.o = NaN*isod.o; isod.opt = NaN*isod.opt;
+isod.chl1 = NaN*isod.chl1; isod.chl2 = NaN*isod.chl2; isod.cdom = NaN*isod.cdom;
+isod.bbp470 = NaN*isod.bbp470; isod.bbp650 = NaN*isod.bbp650; isod.bbp700 = NaN*isod.bbp700;
+    % interpolate at isopycnal values
+for i = 1:nd
+    ind_nan = isnan(sgd.sig(:,i));
+    if sum(~ind_nan) ~= 0
+        isod.t(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.t(~ind_nan,i),sig_grid);
+        isod.s(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.s(~ind_nan,i),sig_grid);
+        isod.date(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.date(~ind_nan,i),sig_grid);
+        isod.hour(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.hour(~ind_nan,i),sig_grid);
+        isod.o(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.o(~ind_nan,i),sig_grid);
+        isod.opt(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.opt(~ind_nan,i),sig_grid);
+        isod.chl1(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.chl1(~ind_nan,i),sig_grid);
+        isod.chl2(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.chl2(~ind_nan,i),sig_grid);
+        isod.cdom(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.cdom(~ind_nan,i),sig_grid);
+        isod.bbp470(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.bbp470(~ind_nan,i),sig_grid);
+        isod.bbp650(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.bbp650(~ind_nan,i),sig_grid);
+        isod.bbp700(:,i) = interp1(sgd.sig(~ind_nan,i),sgd.bbp700(~ind_nan,i),sig_grid);
+    end
+    clear ind_nan
+end
+clear sig_grid
+    
+% Save new variables sgd, dived and isod
+    save(datafile,'sgd','dived','isod')
