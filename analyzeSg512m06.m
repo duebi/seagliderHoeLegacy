@@ -30,6 +30,12 @@ shortz1 = dived.dive >= 178 & dived.dive <= 206; % short zonal transect
 zonal1 = dived.dive >= 206 & dived.dive <= 242; % first zonal transect
 lagr1 = dived.dive >= 245 & dived.dive <= 405; % lagrangian period (following drifter)
 
+% Find mixed layer depth and density at the base of the mixed layer (0.03 kg m-3 difference from sigma at 4 m depth)
+mld = sgd.sig - repmat(sgd.sig(2,:),height(sgd),1) - 0.03;
+mld(mld<0) = NaN; mld(1,:) = NaN;
+[sig003,ind003] = nanmin(mld);
+mld003 = sgd.depth(ind003);
+mld003sig = sig003 + sgd.sig(2,:) + 0.03;
 
 %% Long zonal transect
 ind_part = zonal1;
@@ -90,6 +96,18 @@ xlabel('Latitude N'),ylabel('Depth (m)')
 caxis([34.1 35.45])
 cb = colorbar, title(cb,'Salinity'), set(cb,'Fontsize',16);
 subplot(7,1,6:7)
+contourf(dived.lat(ind_part),sgd.depth,sgd.chl1(:,ind_part),-0.1:0.025:0.9,'edgecolor','none')
+set(gca,'ydir','rev','Fontsize',16)
+ylim([0 350])
+%hold on, plot(mdate(1:end_1),mld003(1:end_1),'k'), hold off
+hold on, contour(dived.lat(ind_part),sgd.depth,sgd.sig(:,ind_part),[23.5 24.3 25.3],'k--'), hold off
+%datetick('x','mm/dd')
+xlabel('Latitude N'),ylabel('Depth (m)')
+caxis([0 0.6])
+cb = colorbar, title(cb,'bbp 470 nm (m-1)'), set(cb,'Fontsize',16);
+pp = get(gca,'Position');
+%{
+subplot(7,1,6:7)
 contourf(dived.lat(ind_part),sgd.depth,sgd.bbp470(:,ind_part),0:5e-4:1e-2,'edgecolor','none')
 set(gca,'ydir','rev','Fontsize',16)
 ylim([0 350])
@@ -100,6 +118,7 @@ xlabel('Latitude N'),ylabel('Depth (m)')
 caxis([5e-4 4e-3])
 cb = colorbar, title(cb,'bbp 470 nm (m-1)'), set(cb,'Fontsize',16);
 pp = get(gca,'Position');
+%}
 subplot(7,1,1)
 plot(dived.lat(ind_part),sshsg(ind_part),'k--',dived.lat(ind_part),slasg(ind_part)*100,'k-'), xlabel('Longitude E'),ylabel('SSHA/SLA (cm)')
 set(gca,'Fontsize',16,'box','off','Color','none')
