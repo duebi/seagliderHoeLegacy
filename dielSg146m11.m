@@ -33,16 +33,26 @@ mld(mld<0) = NaN; mld(1,:) = NaN;
 mld003 = sgd.depth(ind003);
 mld003sig = sig003 + sgd.sig(2,:) + 0.03;
 
-%% Single Day fits of oxygen and bbp to estimate GOP/GPP
-
 % Optimisation options
 opts = optimset('Algorithm','trust-region-reflective','TolFun',1e-9,'TolX',1e-9,'MaxIter',40000,'MaxFunEval',20000);
-% Days to perform the fit
+% Days to perform the fit + sunrise and sunset time
 days = fix(dived.date(1)):1:fix(dived.date(end));
 srs = NaN(length(days),2);
+for i = 1:length(days)
+        % isolate data from a single day
+    ind_dd = fix(dived.date) == days(i);
+    srs_temp = suncycle(mean(dived.lat(ind_dd)),mean(dived.lon(ind_dd)),days(i)); srs_temp = (srs_temp-10)/24; srs_temp(srs_temp<0) = srs_temp(srs_temp<0)+1;
+    srs(i,:) = srs_temp;
+    clear ind_dd srs_temp
+end
+
+%% Single Day fits of oxygen and bbp to estimate GOP/GPP & R
+
 mldsig_max = NaN*days;
 Po = NaN*days; Ro = NaN*days;
+rsq_o = NaN*days; pval_o = NaN*days;
 Pbb = NaN*days; Rbb = NaN*days;
+rsq_bb = NaN*days; pval_bb = NaN*days;
 % Initialize variables for time serie in ml
 dateo_ml = []; datebb_ml = []; opt_ml = []; bb_ml = []; srs_ml = [];
 
@@ -56,8 +66,6 @@ for i = 1:length(days)
     depth_dd = repmat(sgd.depth,1,sum(ind_dd));
     % Fs_dd = Fs(ind_dd);
     date_dd = dived.date(ind_dd);
-    srs_temp = suncycle(mean(dived.lat(ind_dd)),mean(dived.lon(ind_dd)),days(i)); srs_temp = (srs_temp-10)/24; srs_temp(srs_temp<0) = srs_temp(srs_temp<0)+1;
-    srs(i,:) = srs_temp; clear srs_temp
     x_fit = date_dd-days(i); 
     % Integration till the max daily density at the base of mixed layer
     mldsig_max(i) = max(mldsig_dd); % maximum daily density at the base of the mixed layer
@@ -90,6 +98,10 @@ for i = 1:length(days)
         %costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),x_fit+param(4))-y_fitd;
         costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),xo_fit)-yo_fit;
         amp_fit_o = lsqnonlin(costfun,[1 1 1],[-Inf 0 0],[Inf Inf Inf],opts);
+        yo_model = interp1(tt3,amp_fit_o(1)+cumtrapz(tt3,amp_fit_o(2)*Pout3+amp_fit_o(3)*Rout3),xo_fit);
+        [r_temp, p_temp] = corrcoef(yo_fit,yo_model);
+        rsq_o(i) = r_temp(2)^2; pval_o(i) = p_temp(2);
+        clear r_temp p_temp
         Po(i) = amp_fit_o(2);
         Ro(i) = amp_fit_o(3);
         % PLOT
@@ -118,6 +130,9 @@ for i = 1:length(days)
         %costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),x_fit+param(4))-y_fitd;
         costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),xbb_fit)-ybb_fit;
         amp_fit_bb = lsqnonlin(costfun,[1 1 1],[-Inf 0 0],[Inf Inf Inf],opts);
+        ybb_model = interp1(tt3,amp_fit_bb(1)+cumtrapz(tt3,amp_fit_bb(2)*Pout3+amp_fit_bb(3)*Rout3),xbb_fit);
+        [r_temp, p_temp] = corrcoef(ybb_fit,ybb_model);
+        rsq_bb(i) = r_temp(2)^2; pval_bb(i) = p_temp(2);
         Pbb(i) = amp_fit_bb(2);
         Rbb(i) = amp_fit_bb(3);
         % PLOT
@@ -141,7 +156,7 @@ for i = 1:length(days)
         text(0.1,0.002,{['GCP = ' num2str(Pbb(i),2)];['R = ' num2str(Rbb(i),2)]})
         title(datestr(days(i)))        
     end
-    %pause(0.1)
+    pause(0.1)
     clear ind_dd o_dd bb_dd sig_dd mld_dd mldsig_dd depth_dd date_dd
     clear o_fit bb_fit x_fit xo_fit yo_fit xbb_fit ybb_fit indsig_max depthsig_max
     clear ind_ofit ind_bbfit
@@ -151,7 +166,10 @@ end
 %% Fit on variable time window
 mldsig_max2 = NaN*days;
 P2o = NaN*days; R2o = NaN*days;
+rsq2_o = NaN*days; pval2_o = NaN*days;
 P2bb = NaN*days; R2bb = NaN*days;
+rsq2_bb = NaN*days; pval2_bb = NaN*days;
+
 % Time before and after midnight to consider for the fit (to increase n)
 deltaday = 0.5;
 
@@ -193,6 +211,9 @@ for i = 1:length(days)
         %costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),x_fit+param(4))-y_fitd;
         costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),xo_fit)-yo_fit;
         amp_fit_o = lsqnonlin(costfun,[1 1 1],[-Inf 0 0],[Inf Inf Inf],opts);
+        yo_model = interp1(tt3,amp_fit_o(1)+cumtrapz(tt3,amp_fit_o(2)*Pout3+amp_fit_o(3)*Rout3),xo_fit);
+        [r_temp, p_temp] = corrcoef(yo_fit,yo_model);
+        rsq2_o(i) = r_temp(2)^2; pval2_o(i) = p_temp(2);
         P2o(i) = amp_fit_o(2);
         R2o(i) = amp_fit_o(3);
         % PLOT
@@ -213,7 +234,7 @@ for i = 1:length(days)
             xlim([0-deltaday,1+deltaday]), ylim([min(yo_fit)-0.4 max(yo_fit)+0.4])
             legend([p1 l1],{'Datapoint','Fit'},'Fontsize',16)
             xlabel('Decimal day'), ylabel('Adjusted oxygen (umol L-1)')
-            text(0.05,213,{['GOP = ' num2str(Po(i),2)];['R = ' num2str(Ro(i),2)]})
+            text(0.05,213,{['GOP = ' num2str(P2o(i),2)];['R = ' num2str(R2o(i),2)]})
             title(datestr(days(i)))
     end
     % ----- Particle backscattering coefficient (bbp660) -----------
@@ -221,6 +242,9 @@ for i = 1:length(days)
         %costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),x_fit+param(4))-y_fitd;
         costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),xbb_fit)-ybb_fit;
         amp_fit_bb = lsqnonlin(costfun,[1 1 1],[-Inf 0 0],[Inf Inf Inf],opts);
+        ybb_model = interp1(tt3,amp_fit_bb(1)+cumtrapz(tt3,amp_fit_bb(2)*Pout3+amp_fit_bb(3)*Rout3),xbb_fit);
+        [r_temp, p_temp] = corrcoef(ybb_fit,ybb_model);
+        rsq2_bb(i) = r_temp(2)^2; pval2_bb(i) = p_temp(2);
         P2bb(i) = amp_fit_bb(2);
         R2bb(i) = amp_fit_bb(3);
         % PLOT
@@ -241,7 +265,7 @@ for i = 1:length(days)
         xlim([0-deltaday,1+deltaday]), ylim([min(ybb_fit)-0.0001 max(ybb_fit)+0.0001])
         legend([p1 l1],{'Datapoint','Fit'},'Fontsize',16)
         xlabel('Decimal day'), ylabel('Particle backscattering coeff. (m-1)')
-        text(0.1,0.002,{['GCP = ' num2str(Pbb(i),2)];['R = ' num2str(Rbb(i),2)]})
+        text(0.1,0.002,{['GCP = ' num2str(P2bb(i),2)];['R = ' num2str(R2bb(i),2)]})
         title(datestr(days(i)))        
     end
     pause(0.1)
@@ -249,6 +273,7 @@ for i = 1:length(days)
     clear o_fit bb_fit x_fit xo_fit yo_fit xbb_fit ybb_fit indsig_max depthsig_max
     clear ind_ofit ind_bbfit
     clear tt Pout Rout tt3 costfun 
+    clear r_temp p_temp 
 end
 
 %% Plot mixed layer properties and rate estimates from oxygen
@@ -276,24 +301,30 @@ ylim([nanmin(opt_ml)-0.25 nanmax(opt_ml)+0.25])
 set(gca,'Fontsize',16) 
 ylabel('Average ML O2 (mmol m-3)')
 subplot(4,1,3)
-bar(days+0.5,Po,'k')
-hold on, bar(days+0.5,-Ro,'r'), hold off
+bar(days(pval_o<0.05)+0.5,Po(pval_o<0.05),'k')
+hold on, bar(days(pval_o<0.05)+0.5,-Ro(pval_o<0.05),'r'), hold off
+hold on, createPatches(days(pval_o>=0.05)+0.5,Po(pval_o>=0.05),0.4,'k',0.15), hold off
+hold on, createPatches(days(pval_o>=0.05)+0.5,-Ro(pval_o>=0.05),0.4,'r',0.15), hold off
 set(gca,'xtick',days(1:3:end))
 datetick('x','mm/dd','keepticks')
 xlim([dateo_ml(1) dateo_ml(end)])
-ylim([-4.5 4.5])
-legend('GOP','R')
+ylim([-5.5 5.5])
+title('1-day fit')
+legend('GOP (p<0.05)','R (p<0.05)')
 legend('boxoff')
 ylabel('O2 rates (mmol O2 m-3 d-1)')
 set(gca,'Fontsize',16)
 subplot(4,1,4)
-bar(days+0.5,P2o,'k')
-hold on, bar(days+0.5,-R2o,'r'), hold off
+bar(days(pval2_o<0.05)+0.5,P2o(pval2_o<0.05),'k') % Significant GOP
+hold on, bar(days(pval2_o<0.05)+0.5,-R2o(pval2_o<0.05),'r'), hold off % Significant R
+hold on, createPatches(days(pval2_o>=0.05)+0.5,P2o(pval2_o>=0.05),0.4,'k',0.15), hold off
+hold on, createPatches(days(pval2_o>=0.05)+0.5,-R2o(pval2_o>=0.05),0.4,'r',0.15), hold off
 set(gca,'xtick',days(1:3:end))
 datetick('x','mm/dd','keepticks')
 xlim([dateo_ml(1) dateo_ml(end)])
-ylim([-4.5 4.5])
-legend('GOP','R')
+ylim([-5.5 5.5])
+title('2-days fit')
+legend('GOP (p<0.05)','R (p<0.05)')
 legend('boxoff')
 ylabel('O2 rates (mmol O2 m-3 d-1)')
 xlabel('mm/dd 2015')
@@ -325,23 +356,29 @@ ylim([1e-4 8e-4])
 set(gca,'Fontsize',16) 
 ylabel('Average ML bbp660 (m-1)')
 subplot(4,1,3)
-bar(days+0.5,Pbb,'b')
-hold on, bar(days+0.5,-Rbb,'g'), hold off
+bar(days(pval_bb<0.05)+0.5,Pbb(pval_bb<0.05),'b') % Significant GOP
+hold on, bar(days(pval_bb<0.05)+0.5,-Rbb(pval_bb<0.05),'g'), hold off % Significant R
+hold on, createPatches(days(pval_bb>=0.05)+0.5,Pbb(pval_bb>=0.05),0.4,'b',0.15), hold off
+hold on, createPatches(days(pval_bb>=0.05)+0.5,-Rbb(pval_bb>=0.05),0.4,'g',0.15), hold off
 set(gca,'xtick',days(1:3:end))
 datetick('x','mm/dd','keepticks')
 xlim([datebb_ml(1) datebb_ml(end)])
 ylim([-5e-4 5e-4])
+title('1-day fit')
 legend('GPP','R')
 legend('boxoff')
 ylabel('bbp rates (m-1 d-1)')
 set(gca,'Fontsize',16)
 subplot(4,1,4)
-bar(days+0.5,P2bb,'b')
-hold on, bar(days+0.5,-R2bb,'g'), hold off
+bar(days(pval2_bb<0.05)+0.5,P2bb(pval2_bb<0.05),'b') % Significant GOP
+hold on, bar(days(pval2_bb<0.05)+0.5,-R2bb(pval2_bb<0.05),'g'), hold off % Significant R
+hold on, createPatches(days(pval2_bb>=0.05)+0.5,P2bb(pval2_bb>=0.05),0.4,'b',0.15), hold off
+hold on, createPatches(days(pval2_bb>=0.05)+0.5,-R2bb(pval2_bb>=0.05),0.4,'g',0.15), hold off
 set(gca,'xtick',days(1:3:end))
 datetick('x','mm/dd','keepticks')
 xlim([datebb_ml(1) datebb_ml(end)])
 ylim([-5e-4 5e-4])
+title('2-days fit')
 legend('GPP','R')
 legend('boxoff')
 ylabel('bbp rates (m-1 d-1)')
@@ -350,7 +387,7 @@ set(gca,'Fontsize',16)
 
 %% Whole cruise diel averages in the mixed layer
 clear bins diel_opt diel_bbp660 md_opt md_bbp660 anom_opt anom_bbp660
-
+%{
 binwidth = 1/12; %1/24;
 binrange = [binwidth/2 1-binwidth/2];
 
@@ -362,3 +399,4 @@ plot([bins(end)-1 bins bins(1)+1],[diel_opt(end) diel_opt diel_opt(1)],'ko--')
 xlim([0 1])
 subplot(1,2,2)
 plot([bins(end)-1 bins bins(1)+1],[diel_opt(end) diel_opt diel_opt(1)],'ko--')
+%}
