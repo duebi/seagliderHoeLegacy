@@ -11,9 +11,8 @@ cd(sgpath);
 clear upth sgpath mission
 
 load sg146m11data
-load ../ccar2015
-load ../aviso2015
 load ../../colorbrewer_anom
+load ../aviso2015.mat
 load ../hawaii.dat
 coastline = hawaii;
 coastline(:,1) = -coastline(:,1);
@@ -22,10 +21,6 @@ clear hawaii
 
 % Horizontal length of the arrays
 nd = length(dived.dive);
-
-% interpolate ssh on each glider dive
-sshsg = interp3(ssh.lon_g,ssh.lat_g,ssh.date_g,ssh.ssh,dived.lon,dived.lat,dived.date);
-slasg = interp3(sla.lon_g,sla.lat_g,sla.date_g,sla.sla,dived.lon,dived.lat,dived.date);
 
 % indeces of different transects
 merid1 = dived.dive >= 50 & dived.dive <= 137 & dived.dive ~= 106; % first meridional transect
@@ -41,6 +36,12 @@ mld(mld<0) = NaN; mld(1,:) = NaN;
 [sig003,ind003] = nanmin(mld);
 mld003 = sgd.depth(ind003);
 mld003sig = sig003 + sgd.sig(2,:) + 0.03;
+
+% Compute Brunt-Vaisala frequency
+rho_z = (sgd.sig(3:end,:)-sgd.sig(1:end-2,:))./repmat(sgd.depth(3:end)-sgd.depth(1:end-2),1,nd);
+rho_z = [NaN(1,nd); rho_z; NaN(1,nd)];
+rho_z(rho_z<0) = NaN;
+bvf = sqrt((9.8*rho_z)./(1000+sgd.sig)); % s-1
 
 %% Long zonal transect
 ind_part = zonal1; %shortz1;
@@ -87,11 +88,10 @@ cb = colorbar, title(cb,'bbp 470 nm (m-1)'), set(cb,'Fontsize',16)
 pp = get(gca,'Position')
 %}
 subplot(7,1,1)
-plot(dived.lon(ind_part),sshsg(ind_part),'k--',dived.lon(ind_part),slasg(ind_part)*100,'k-'), xlabel('Longitude E'),ylabel('SSHA/SLA (cm)')
+plot(dived.lon(ind_part),dived.sla(ind_part),'k-'), xlabel('Longitude E'),ylabel('SLA (cm)')
 set(gca,'Fontsize',16,'box','off','Color','none')
 xlim([min(dived.lon(ind_part)) max(dived.lon(ind_part))])
 pp1 = get(gca,'Position'), set(gca,'Position',[pp(1) pp1(2) pp(3) pp1(4)])
-lg = legend('ccar','aviso'), set(lg,'Fontsize',16), legend('boxoff')
 
 %% Long meridional transect
 ind_part = merid1;
@@ -138,11 +138,10 @@ cb = colorbar, title(cb,'bbp 470 nm (m-1)'), set(cb,'Fontsize',16)
 pp = get(gca,'Position')
 %}
 subplot(7,1,1)
-plot(dived.lat(ind_part),sshsg(ind_part),'k--',dived.lat(ind_part),slasg(ind_part)*100,'k-'), xlabel('Latitude E'),ylabel('SSHA/SLA (cm)')
+plot(dived.lat(ind_part),dived.sla(ind_part),'k-'), xlabel('Latitude E'),ylabel('SLA (cm)')
 set(gca,'Fontsize',16,'box','off','Color','none')
 xlim([min(dived.lat(ind_part)) max(dived.lat(ind_part))])
 pp1 = get(gca,'Position'), set(gca,'Position',[pp(1) pp1(2) pp(3) pp1(4)])
-lg = legend('ccar','aviso'), set(lg,'Fontsize',16), legend('boxoff')
 
 %% Isopycnal zonal transect of anomalies
 
@@ -180,11 +179,10 @@ caxis([-0.0012 0.0012])
 cb = colorbar, title(cb,'bbp 470 anomaly (m-1)'), set(cb,'Fontsize',16)
 pp = get(gca,'Position')
 subplot(7,1,1)
-plot(dived.lon(ind_part),sshsg(ind_part),'k--',dived.lon(ind_part),slasg(ind_part)*100,'k-'), xlabel('Longitude E'),ylabel('SSHA/SLA (cm)')
+plot(dived.lon(ind_part),dived.sla(ind_part),'k-'), xlabel('Longitude E'),ylabel('SLA (cm)')
 set(gca,'Fontsize',16,'box','off','Color','none')
 xlim([min(dived.lon(ind_part)) max(dived.lon(ind_part))])
 pp1 = get(gca,'Position'), set(gca,'Position',[pp(1) pp1(2) pp(3) pp1(4)])
-lg = legend('ccar','aviso'), set(lg,'Fontsize',16), legend('boxoff')
 colormap(anom_map2)
 
 %% Isopycnal meridional transect of anomalies
@@ -224,11 +222,10 @@ caxis([-0.0012 0.0012])
 cb = colorbar, title(cb,'bbp 470 anomaly (m-1)'), set(cb,'Fontsize',16)
 pp = get(gca,'Position')
 subplot(7,1,1)
-plot(dived.lat(ind_part),sshsg(ind_part),'k--',dived.lat(ind_part),slasg(ind_part)*100,'k-'), xlabel('Latitude N'),ylabel('SSHA/SLA (cm)')
+plot(dived.lat(ind_part),dived.sla(ind_part),'k-'), xlabel('Latitude N'),ylabel('SLA (cm)')
 set(gca,'Fontsize',16,'box','off','Color','none')
 xlim([min(dived.lat(ind_part)) max(dived.lat(ind_part))])
 pp1 = get(gca,'Position'), set(gca,'Position',[pp(1) pp1(2) pp(3) pp1(4)])
-lg = legend('ccar','aviso'), set(lg,'Fontsize',16), legend('boxoff')
 colormap(anom_map2)
 
 %% Map of transects
