@@ -10,6 +10,7 @@ upth = userpath;
 sgpath =  [upth(1:end-1) '/Data/seaglider/' mission];
 clear upth
 load([sgpath '/oxy_cal'])
+
 %load pcpn_cal
 
 nd = length(d_range(1):d_range(2)); % total number of dives
@@ -95,7 +96,7 @@ UP.optode_oxygen = UP.optode_oxygen.*(1+UP.press.*0.032./1000);
 % 6. Save concatenated dive file
 save([mission '_cat'],'UP','DWN');
 
-% 7. Put data on a regular grid
+%% 7. Put data on a regular grid
 datafile = [mission(1:5) mission(7)  mission(8:9) 'data'];
 depth = 2:2:1000; ld = length(depth);
 [UG,DG] = sg_grid(['./' mission '_cat'],depth,'gridVar','vmdepth','diveRange',d_range(1):d_range(2),'outVars',{'lon','lat','daten','salin','tempc','sigmath0','oxygen','optode_dphase_oxygen','optode_oxygen','chl1','chl2','bbp470','bbp660','bbp700','cdom'});
@@ -127,7 +128,12 @@ dived.lat = nanmean(sgd.lat);
 dived.dive = d_range(1):d_range(2);
 dived.date = nanmean(sgd.date);
 dived.hour = dived.date - fix(dived.date);
-dived.units = {'lon: Degrees E','lat: Degrees N','dive: #','date: Matlab date (HST)','hour: Decimal day (HST)',};
+[dived.u10,~,~,~,~,~] = ow_2obs(dived.lat,dived.lon,dived.date+10/24); % extract wind data
+dived.u10 = dived.u10';
+dived.u10(isnan(dived.u10)) = interp1(dived.date(~isnan(dived.u10)),dived.u10(~isnan(dived.u10)),dived.date(isnan(dived.u10))); % interpolate missing data
+[dived.slp,~,~,~] = nr_2obs(dived.lat,dived.lon,dived.date+10/24,'pres','surface_gauss'); % Sea level pressure in Pascals
+dived.slp = dived.slp';
+dived.units = {'lon: Degrees E';'lat: Degrees N';'dive: #';'date: Matlab date (HST)';'hour: Decimal day (HST)';'u10: wind at 10 m (m s-1)';'slp: sea level pressure (Pa)'};
 
 % 8. Oxygen calibration on Winkler measurements
     % build comparison array
@@ -208,5 +214,15 @@ for i = 1:nd
 end
 clear sig_grid
     
+% Compute surface oxygen flux
+[dived.Fs,~,~,~,~] = fas_L13(sgd.opt(1,:)/1000,dived.u10,sgd.s(1,:)*35/35.16504,sgd.t(1,:),dived.slp*0.00000986923267,'O2');
+dived.Fs = dived.Fs*86400; % from s-1 to d-1
+dived.units{end+1} = 'Fs: surface oxygen flux (mol m-2 d-1)';
+
+% InterpolateSLA on seaglider position and time
+[dived.sla,~,~,~] = av_2obs(dived.lat,dived.lon,dived.date+10/24,'sla','linear');
+dived.sla = dived.sla*100;
+dived.units{end+1} = 'sla: sea level anomaly from AVISO (cm)';
+
 % Save new variables sgd, dived and isod
     save(datafile,'sgd','dived','isod')
