@@ -11,12 +11,6 @@ cd(sgpath);
 clear upth sgpath mission
 
 load sg146m11data
-load ../ccar2015
-load ../aviso2015
-
-% interpolate ssh on each glider dive
-sshsg = interp3(ssh.lon_g,ssh.lat_g,ssh.date_g,ssh.ssh,dived.lon,dived.lat,dived.date);
-slasg = interp3(sla.lon_g,sla.lat_g,sla.date_g,sla.sla,dived.lon,dived.lat,dived.date);
 
 % indeces of different transects
 merid1 = dived.dive >= 50 & dived.dive <= 137 & dived.dive ~= 106; % first meridional transect
@@ -64,7 +58,7 @@ for i = 1:length(days)
     mld_dd = mld003(ind_dd);
     mldsig_dd = mld003sig(ind_dd);
     depth_dd = repmat(sgd.depth,1,sum(ind_dd));
-    % Fs_dd = Fs(ind_dd);
+    Fs_dd = dived.Fs(ind_dd);
     date_dd = dived.date(ind_dd);
     x_fit = date_dd-days(i); 
     % Integration till the max daily density at the base of mixed layer
@@ -76,7 +70,7 @@ for i = 1:length(days)
         % oxygen data for fit
     o_fit = o_dd; o_fit(~indsig_max) = NaN; % o_fitd(1:4,:) = NaN;
     ind_ofit = ~isnan(nanmean(o_fit));
-    yo_fit = nanmean(o_fit(:,ind_ofit));%-cumtrapz(x_fit(ind_ofit),1000*86400*Fs_dd(ind_ofit)/meandepthsig_max);
+    yo_fit = nanmean(o_fit(:,ind_ofit))-cumtrapz(x_fit(ind_ofit),1000*Fs_dd(ind_ofit)/meandepthsig_max);
     xo_fit = x_fit(ind_ofit);
         % backscattering data for fit
     bb_fit = bb_dd; bb_fit(~indsig_max) = NaN; %bb_fitd(1:5,:) = NaN;
@@ -118,6 +112,7 @@ for i = 1:length(days)
             patch([0 srs(i,1) srs(i,1) 0],[250 250 180 180],[0.9 0.9 0.9],'edgecolor','none')
             hold on, patch([srs(i,2) srs(i,1)+1 srs(i,1)+1 srs(i,2)],[250 250 180 180],[0.9 0.9 0.9],'edgecolor','none'), hold off
             hold on, p1 = plot(xo_fit,yo_fit,'o'); hold off
+            hold on, p2 = plot(xo_fit,nanmean(o_fit(:,ind_ofit)),'ro'); hold off
             hold on, l1 = plot(tt3,[amp_fit_o(1)+cumtrapz(tt3,amp_fit_o(2)*Pout3+amp_fit_o(3)*Rout3)],'k-'); hold off
             xlim([0 1]), ylim([min(yo_fit)-0.4 max(yo_fit)+0.4])
             legend([p1 l1],{'Datapoint','Fit'},'Fontsize',16)
@@ -157,7 +152,7 @@ for i = 1:length(days)
         title(datestr(days(i)))        
     end
     pause(0.1)
-    clear ind_dd o_dd bb_dd sig_dd mld_dd mldsig_dd depth_dd date_dd
+    clear ind_dd o_dd bb_dd sig_dd mld_dd mldsig_dd depth_dd date_dd Fs_dd
     clear o_fit bb_fit x_fit xo_fit yo_fit xbb_fit ybb_fit indsig_max depthsig_max
     clear ind_ofit ind_bbfit
     clear tt Pout Rout tt3 costfun 
@@ -182,7 +177,7 @@ for i = 1:length(days)
     mld_dd = mld003(ind_dd);
     mldsig_dd = mld003sig(ind_dd);
     depth_dd = repmat(sgd.depth,1,sum(ind_dd));
-    % Fs_dd = Fs(ind_dd);
+    Fs_dd = dived.Fs(ind_dd);
     date_dd = dived.date(ind_dd);
     x_fit = date_dd-days(i); 
     % Integration till the max daily density at the base of mixed layer
@@ -194,7 +189,7 @@ for i = 1:length(days)
         % oxygen data for fit
     o_fit = o_dd; o_fit(~indsig_max) = NaN; % o_fitd(1:4,:) = NaN;
     ind_ofit = ~isnan(nanmean(o_fit));
-    yo_fit = nanmean(o_fit(:,ind_ofit));%-cumtrapz(x_fit(ind_ofit),1000*86400*Fs_dd(ind_ofit)/meandepthsig_max);
+    yo_fit = nanmean(o_fit(:,ind_ofit))-cumtrapz(x_fit(ind_ofit),1000*Fs_dd(ind_ofit)/meandepthsig_max);
     xo_fit = x_fit(ind_ofit);
             % backscattering data for fit
     bb_fit = bb_dd; bb_fit(~indsig_max) = NaN; %bb_fitd(1:5,:) = NaN;
@@ -230,6 +225,7 @@ for i = 1:length(days)
             patch([srs(i,2)-1 srs(i,1) srs(i,1) srs(i,2)-1],[250 250 180 180],[0.9 0.9 0.9],'edgecolor','none')
             hold on, patch([srs(i,2) srs(i,1)+1 srs(i,1)+1 srs(i,2)],[250 250 180 180],[0.9 0.9 0.9],'edgecolor','none'), hold off
             hold on, p1 = plot(xo_fit,yo_fit,'o'); hold off
+            hold on, p2 = plot(xo_fit,nanmean(o_fit(:,ind_ofit)),'ro'); hold off
             hold on, l1 = plot(tt3,[amp_fit_o(1)+cumtrapz(tt3,amp_fit_o(2)*Pout3+amp_fit_o(3)*Rout3)],'k-'); hold off
             xlim([0-deltaday,1+deltaday]), ylim([min(yo_fit)-0.4 max(yo_fit)+0.4])
             legend([p1 l1],{'Datapoint','Fit'},'Fontsize',16)
@@ -269,7 +265,7 @@ for i = 1:length(days)
         title(datestr(days(i)))        
     end
     pause(0.1)
-    clear ind_dd o_dd bb_dd sig_dd mld_dd mldsig_dd depth_dd date_dd
+    clear ind_dd o_dd bb_dd sig_dd mld_dd mldsig_dd depth_dd date_dd Fs_dd
     clear o_fit bb_fit x_fit xo_fit yo_fit xbb_fit ybb_fit indsig_max depthsig_max
     clear ind_ofit ind_bbfit
     clear tt Pout Rout tt3 costfun 
