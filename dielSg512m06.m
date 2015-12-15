@@ -1,24 +1,22 @@
-% dielSg146m11.m
+% dielSg512m06.m
 %
-% script to analyze diel cycles from 2015 SeaGlider mission sg146m11
+% script to analyze diel cycles from 2015 SeaGlider mission sg512m06
 % 
-% Benedetto Barone - Oct 2015
+% Benedetto Barone - Nov 2015
 
-mission = 'sg146_m11';
+mission = 'sg512_m06';
 upth = userpath; 
 sgpath =  [upth(1:end-1) '/Data/seaglider/' mission];
 cd(sgpath);
 clear upth sgpath mission
 
-load sg146m11data
+load sg512m06data
 
 % indeces of different transects
-merid1 = dived.dive >= 50 & dived.dive <= 137 & dived.dive ~= 106; % first meridional transect
-shortz1 = dived.dive >= 137 & dived.dive <= 151; % short zonal transect
-shortm1 = dived.dive >= 151 & dived.dive <= 155; % short meridional transect
-zonal1 = dived.dive >= 155 & dived.dive <= 226 &  dived.dive ~= 189; % first zonal transect
-zonal2 = dived.dive >= 226 & dived.dive <= 265; % second zonal transect
-merid2 = dived.dive >= 265 & dived.dive <= 318; % second meridional transect
+merid1 = dived.dive >= 113 & dived.dive <= 178 & dived.dive ~= 143; % first meridional transect
+shortz1 = dived.dive >= 178 & dived.dive <= 206; % short zonal transect
+zonal1 = dived.dive >= 206 & dived.dive <= 242; % first zonal transect
+lagr1 = dived.dive >= 245 & dived.dive <= 405; % lagrangian period (following drifter)
 
 % Find mixed layer depth and density at the base of the mixed layer (0.03 kg m-3 difference from sigma at 4 m depth)
 mld = sgd.sig - repmat(sgd.sig(2,:),height(sgd),1) - 0.03;
@@ -40,6 +38,10 @@ for i = 1:length(days)
     clear ind_dd srs_temp
 end
 
+% Interpolate missing values from air sea flux
+
+dived.Fs(isnan(dived.Fs)) = interp1(dived.date(~isnan(dived.Fs)),dived.Fs(~isnan(dived.Fs)),dived.date(isnan(dived.Fs)));
+
 %% Single Day fits of oxygen and bbp to estimate GOP/GPP & R
 
 mldsig_max = NaN*days;
@@ -57,7 +59,7 @@ for i = 1:length(days)
     ind_dd = fix(dived.date) == days(i);
     daylat(i) = nanmean(dived.lat(ind_dd));
     daylon(i) = nanmean(dived.lon(ind_dd));
-    o_dd = sgd.opt(:,ind_dd); bb_dd = sgd.bbp660(:,ind_dd);
+    o_dd = sgd.opt(:,ind_dd); bb_dd = sgd.bbp650(:,ind_dd);
     chl_dd = sgd.chl1(:,ind_dd);
     sig_dd = sgd.sig(:,ind_dd);
     mld_dd = mld003(ind_dd);
@@ -110,7 +112,7 @@ for i = 1:length(days)
             contourf(xo_fit,sgd.depth,o_dd(:,ind_ofit),190:1:230,'edgecolor','none')
             hold on, l1 = plot(x_fit,depthsig_max,'k-'); hold off
             set(gca,'ydir','rev')
-            xlim([0,1]),ylim([0 60])
+            xlim([0,1]),ylim([0 80])
             caxis([205 230])
             xlabel('Decimal day'), ylabel('Depth (m)')
             cb = colorbar('Location','NorthOutside','Fontsize',16);
@@ -127,7 +129,7 @@ for i = 1:length(days)
             text(0.05,213,{['GOP = ' num2str(Po(i),2)];['R = ' num2str(Ro(i),2)]})
             title(datestr(days(i)))
     end
-    % ----- Particle backscattering coefficient (bbp660) -----------
+    % ----- Particle backscattering coefficient (bbp650) -----------
     if length(ybb_fit)>=4
         %costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),x_fit+param(4))-y_fitd;
         costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),xbb_fit)-ybb_fit;
@@ -142,7 +144,7 @@ for i = 1:length(days)
         contourf(xbb_fit,sgd.depth,bb_dd(:,ind_bbfit),0:1.25e-4:8e-3,'edgecolor','none')
         hold on, l1=plot(x_fit,depthsig_max,'k-'); hold off
         set(gca,'ydir','rev')
-        xlim([0,1]),ylim([0 60])
+        xlim([0,1]),ylim([0 80])
         caxis([0 1e-3]) %caxis([1e-3 5e-3])
         xlabel('Decimal day'), ylabel('Depth (m)')
         cb = colorbar('Location','NorthOutside','Fontsize',16);
@@ -152,13 +154,13 @@ for i = 1:length(days)
         hold on, patch([srs(i,2) srs(i,1)+1 srs(i,1)+1 srs(i,2)],[0.08 0.08 0 0],[0.9 0.9 0.9],'edgecolor','none'), hold off
         hold on, p1 = plot(xbb_fit,ybb_fit,'o'); hold off
         hold on, l1 = plot(tt3,[amp_fit_bb(1)+cumtrapz(tt3,amp_fit_bb(2)*Pout3+amp_fit_bb(3)*Rout3)],'k-'); hold off
-        xlim([0 1]), ylim([min(ybb_fit)-0.0005 max(ybb_fit)+0.0005])
+        xlim([0 1]), ylim([min(ybb_fit)-0.00001 max(ybb_fit)+0.00001])
         legend([p1 l1],{'Datapoint','Fit'},'Fontsize',16)
         xlabel('Decimal day'), ylabel('Particle backscattering coeff. (m-1)')
         text(0.1,0.002,{['GCP = ' num2str(Pbb(i),2)];['R = ' num2str(Rbb(i),2)]})
         title(datestr(days(i)))        
     end
-    %pause(0.1)
+    %pause
     clear ind_dd o_dd bb_dd sig_dd mld_dd mldsig_dd depth_dd date_dd Fs_dd
     clear o_fit bb_fit x_fit xo_fit yo_fit xbb_fit ybb_fit indsig_max depthsig_max
     clear ind_ofit ind_bbfit
@@ -179,7 +181,7 @@ for i = 1:length(days)
         % isolate data from a single day
     ind_dd = dived.date < (days(i)+1+deltaday) & dived.date > (days(i)-deltaday);
     o_dd = sgd.opt(:,ind_dd);
-    bb_dd = sgd.bbp660(:,ind_dd);
+    bb_dd = sgd.bbp650(:,ind_dd);
     sig_dd = sgd.sig(:,ind_dd);
     mld_dd = mld003(ind_dd);
     mldsig_dd = mld003sig(ind_dd);
@@ -240,7 +242,7 @@ for i = 1:length(days)
             text(0.05,213,{['GOP = ' num2str(P2o(i),2)];['R = ' num2str(R2o(i),2)]})
             title(datestr(days(i)))
     end
-    % ----- Particle backscattering coefficient (bbp660) -----------
+    % ----- Particle backscattering coefficient (bbp650) -----------
     if length(ybb_fit)>=4
         %costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),x_fit+param(4))-y_fitd;
         costfun = @(param) interp1(tt3,param(1)+cumtrapz(tt3,param(2)*Pout3+param(3)*Rout3),xbb_fit)-ybb_fit;
@@ -259,7 +261,7 @@ for i = 1:length(days)
         caxis([0 1e-3]) % caxis([1e-3 5e-3]) 
         xlabel('Decimal day'), ylabel('Depth (m)')
         cb = colorbar('Location','NorthOutside','Fontsize',16);
-        title(cb,'bbp660 (m-1)')
+        title(cb,'bbp650 (m-1)')
         subplot(2,2,4)
         patch([srs(i,2)-1 srs(i,1) srs(i,1) srs(i,2)-1],[0.08 0.08 0 0],[0.9 0.9 0.9],'edgecolor','none')
         hold on, patch([srs(i,2) srs(i,1)+1 srs(i,1)+1 srs(i,2)],[0.08 0.08 0 0],[0.9 0.9 0.9],'edgecolor','none'), hold off
@@ -286,9 +288,9 @@ subplot(5,1,1)
 plot(dived.date,dived.sla,'k-'),
 ylabel('SLA (cm)')
 set(gca,'Fontsize',16,'box','off','Color','none')
-set(gca,'xtick',days(1:3:end))
+set(gca,'xtick',days(1:4:end))
 datetick('x','mm/dd','keepticks')
-xlim([dateo_ml(1) dateo_ml(end)])
+xlim([dateo_ml(1) dateo_ml(end)+0.5])
 subplot(5,1,2)
 hold on
 for i = 2:length(days)
@@ -296,10 +298,10 @@ for i = 2:length(days)
 end
 plot(dateo_ml,opt_ml,'color',[0 0 0])
 hold off
-set(gca,'xtick',days(1:3:end))
+set(gca,'xtick',days(1:4:end))
 datetick('x','mm/dd','keepticks')
 xlim([dateo_ml(1) dateo_ml(end)+0.5])
-ylim([nanmin(opt_ml)-0.25 nanmax(opt_ml)+0.25])
+ylim([204 215])%ylim([nanmin(opt_ml)-0.25 nanmax(opt_ml)+0.25])
 set(gca,'Fontsize',16) 
 ylabel('Median ML O2 (mmol m-3)')
 subplot(5,1,3)
@@ -322,7 +324,7 @@ bar(days(pval2_o<0.05)+0.5,P2o(pval2_o<0.05),'k') % Significant GOP
 hold on, bar(days(pval2_o<0.05)+0.5,-R2o(pval2_o<0.05),'r'), hold off % Significant R
 hold on, createPatches(days(pval2_o>=0.05)+0.5,P2o(pval2_o>=0.05),0.4,'k',0.15), hold off
 hold on, createPatches(days(pval2_o>=0.05)+0.5,-R2o(pval2_o>=0.05),0.4,'r',0.15), hold off
-set(gca,'xtick',days(1:3:end))
+set(gca,'xtick',days(1:4:end))
 datetick('x','mm/dd','keepticks')
 xlim([dateo_ml(1) dateo_ml(end)+0.5])
 ylim([-5 5])
@@ -339,13 +341,13 @@ for i = 2:length(days)
 end
 plot(datebb_ml,bb_ml,'color',[0 0 0])
 hold off
-set(gca,'xtick',days(1:3:end))
+set(gca,'xtick',days(1:4:end))
 datetick('x','mm/dd','keepticks')
-xlim([datebb_ml(1) datebb_ml(end)+0.5])
+xlim([dateo_ml(1) dateo_ml(end)+0.5])
 ylim([nanmin(bb_ml)-0.0001 nanmax(bb_ml)+0.0001])
 ylim([1e-4 6e-4])
 set(gca,'Fontsize',16) 
-ylabel('Median ML bbp660 (m-1)')
+ylabel('Median ML bbp650 (m-1)')
 subplot(5,1,5)
 %{
 bar(days(pval_bb<0.05)+0.5,Pbb(pval_bb<0.05),'b') % Significant GOP
@@ -366,9 +368,9 @@ bar(days(pval2_bb<0.05)+0.5,P2bb(pval2_bb<0.05),'b') % Significant GOP
 hold on, bar(days(pval2_bb<0.05)+0.5,-R2bb(pval2_bb<0.05),'g'), hold off % Significant R
 hold on, createPatches(days(pval2_bb>=0.05)+0.5,P2bb(pval2_bb>=0.05),0.4,'b',0.15), hold off
 hold on, createPatches(days(pval2_bb>=0.05)+0.5,-R2bb(pval2_bb>=0.05),0.4,'g',0.15), hold off
-set(gca,'xtick',days(1:3:end))
+set(gca,'xtick',days(1:4:end))
 datetick('x','mm/dd','keepticks')
-xlim([datebb_ml(1) datebb_ml(end)+0.5])
+xlim([dateo_ml(1) dateo_ml(end)+0.5])
 ylim([-3.5e-4 3.5e-4])
 title('2-days fit')
 legend('GPP (p<0.05)','R (p<0.05)')
@@ -378,13 +380,13 @@ xlabel('mm/dd 2015')
 set(gca,'Fontsize',16)
 
 %% Whole cruise diel averages in the mixed layer
-clear bins diel_opt diel_bbp660 md_opt md_bbp660 anom_opt anom_bbp660
+clear bins diel_opt diel_bbp650 md_opt md_bbp650 anom_opt anom_bbp650
 %{
 binwidth = 1/12; %1/24;
 binrange = [binwidth/2 1-binwidth/2];
 
 [diel_opt,bins] = dielbinning(opt_ml,dateo_ml-fix(dateo_ml),binwidth,binrange,'median');
-[diel_bbp660,bins] = dielbinning(bb_ml,datebb_ml-fix(datebb_ml),binwidth,binrange,'median');
+[diel_bbp650,bins] = dielbinning(bb_ml,datebb_ml-fix(datebb_ml),binwidth,binrange,'median');
 
 subplot(1,2,1)
 plot([bins(end)-1 bins bins(1)+1],[diel_opt(end) diel_opt diel_opt(1)],'ko--')
@@ -402,7 +404,7 @@ ind_n = find(isnan(coastline(:,1)));
 clear hawaii
 clf
 
-subplot(1,2,1)
+subplot(2,1,1)
 % Station ALOHA & coastline
     raloha = 6/59.79; 
     plot3(-158 + raloha*cos(0:0.01:2*pi),22.75 + raloha*sin(0:0.01:2*pi),0*(0:0.01:2*pi),'k','linewidth',1);
@@ -416,11 +418,11 @@ set(gca,'Fontsize',16)
 axis equal
 scatterbar3(daylon(pval2_o<0.05),daylat(pval2_o<0.05),P2o(pval2_o<0.05),0.05,'k',0.3)
 hold off
-xlim([-159 -156]),ylim([21 25])
-daspect([min(daspect)*[1 1] 5])
-set(gca,'Color','none','Box','off  ','CameraPosition',[-148.2785 6.9668 91.2922])
+xlim([-159 -156]),ylim([21 25.5])
+daspect([min(daspect)*[1 1] 8])
+set(gca,'Color','none','Box','off  ','CameraPosition',[-171.1661 5.1333 136.4140])
 xlabel('Longitude (deg E)'), ylabel('Latitude (deg N)'),zlabel('GOP (mmol O2 m-3 d-1)')
-subplot(1,2,2)
+subplot(2,1,2)
 % Station ALOHA & coastline
     raloha = 6/59.79; 
     plot3(-158 + raloha*cos(0:0.01:2*pi),22.75 + raloha*sin(0:0.01:2*pi),0*(0:0.01:2*pi),'k','linewidth',1);
@@ -434,9 +436,9 @@ set(gca,'Fontsize',16)
 axis equal
 scatterbar3(daylon(pval2_o<0.05),daylat(pval2_o<0.05),R2o(pval2_o<0.05),0.05,'r',0.3)
 hold off
-xlim([-159 -156]),ylim([21 25])
-daspect([min(daspect)*[1 1] 5])
-set(gca,'Color','none','Box','off','CameraPosition',[-148.2785 6.9668 91.2922])
+xlim([-159 -156]),ylim([21 25.5])
+daspect([min(daspect)*[1 1] 8])
+set(gca,'Color','none','Box','off','CameraPosition',[-171.1661 5.1333 136.4140])
 xlabel('Longitude (deg E)'), ylabel('Latitude (deg N)'),zlabel('R (mmol O2 m-3 d-1)')
 
 %% Plot spatial variability of GPP and R from backscatter data (2-days fit)
@@ -462,7 +464,7 @@ set(gca,'Fontsize',16)
 axis equal
 scatterbar3(daylon(pval2_bb<0.05),daylat(pval2_bb<0.05),P2bb(pval2_bb<0.05),0.05,'b',0.3)
 hold off
-xlim([-159 -156]),ylim([21 25])
+xlim([-159 -156]),ylim([21 25.5])
 daspect([min(daspect)*[1 1] 4.5e-4])
 set(gca,'Color','none','Box','off  ','CameraPosition',[-149.5743 4.8230 0.0072])
 xlabel('Longitude (deg E)'), ylabel('Latitude (deg N)'),zlabel('GPP (m-1 d-1)')
@@ -480,7 +482,7 @@ set(gca,'Fontsize',16)
 axis equal
 scatterbar3(daylon(pval2_bb<0.05),daylat(pval2_bb<0.05),R2bb(pval2_bb<0.05),0.05,'g',0.3)
 hold off
-xlim([-159 -156]),ylim([21 25])
+xlim([-159 -156]),ylim([21 25.5])
 daspect([min(daspect)*[1 1] 4.5e-4])
 set(gca,'Color','none','Box','off','CameraPosition',[-149.5743 4.8230 0.0072])
 xlabel('Longitude (deg E)'), ylabel('Latitude (deg N)'),zlabel('R (m-1 d-1)')
