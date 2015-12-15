@@ -10,6 +10,7 @@ upth = userpath;
 sgpath =  [upth(1:end-1) '/Data/seaglider/' mission];
 clear upth
 load([sgpath '/oxy_cal'])
+load([sgpath '/hplc_cal'])
 
 %load pcpn_cal
 
@@ -182,6 +183,52 @@ set(gca,'Fontsize',16), xlabel('Winkler - SBE43 (umol L-1)'), ylabel('n. obs.')
 title('upper 100m')
 %}
 
+% 9. Fluorescence-Chlorophyll calibration from HPLC pigment measurements
+% build comparison array
+hplc_comp = hplc_cal(:,{'DATE','DEPTH','LAT','LON','TOTCHLA'});
+hplc_comp.TPP = hplc_cal.TOTCHLA + hplc_cal.CHLC + hplc_cal.MV_CHLB + hplc_cal.FUCO + hplc_cal.HEX + hplc_cal.BUT;
+hplc_comp.dist = NaN(height(hplc_cal),1);
+hplc_comp.lag = NaN(height(hplc_cal),1);
+hplc_comp.zdist = NaN(height(hplc_cal),1);
+hplc_comp.chl1 = NaN(height(hplc_cal),1);
+hplc_comp.chl2 = NaN(height(hplc_cal),1);
+for i = 1:height(hplc_cal)
+    [hplc_comp.lag(i),ind_t] = min(abs(dived.date-hplc_comp.DATE(i)));
+    hplc_comp.dist(i) = vdist(dived.lat(ind_t),dived.lon(ind_t),hplc_comp.LAT(i),-hplc_comp.LON(i));
+    [hplc_comp.zdist(i),ind_z] = min(abs(sgd.depth-hplc_comp.DEPTH(i)));
+    hplc_comp.chl1(i) = sgd.chl1(ind_z,ind_t);
+    hplc_comp.chl2(i) = sgd.chl2(ind_z,ind_t);
+    clear ind_t ind_z
+end
+ind_good = hplc_comp.dist<20000 & hplc_comp.lag<0.2 & hplc_comp.zdist<10;
+    % Compute offset in the upper 100 m and correct oxygen from sensors
+% Regression fluorescence vs. chla+chlb+chlc+psc
+[param_c1,stat_c1] = robustfit(hplc_comp.chl1(ind_good),hplc_comp.TOTCHLA(ind_good)+hplc_comp.TPP(ind_good));
+[slope_psc1,intercept_psc1,r_psc1,sslope_psc1,sintercept_psc1]  = lsqfitgm(hplc_comp.chl1(ind_good),hplc_comp.TOTCHLA(ind_good)+hplc_comp.TPP(ind_good));
+[param_c2,stat_c2] = robustfit(hplc_comp.chl2(ind_good),hplc_comp.TOTCHLA(ind_good)+hplc_comp.TPP(ind_good));
+opts = optimset('MaxIter',20000,'MaxFunEval',200000);
+beta3 = lsqcurvefit('gompertzfun',[0.89 -0.31 -3000 -0.08],hplc_comp.DEPTH,hplc_comp.TOTCHLA./hplc_comp.TPP,[],[],opts);
+r_sig3 = corrcoef(gompertzfun(beta3,hplc_comp.DEPTH),hplc_comp.TOTCHLA./hplc_comp.TPP);
+% Calibrate fluorescence on chlorophyll a
+sgd.chl1 = (param_c1(2)*sgd.chl1 + param_c1(1)).*(gompertzfun(beta3,repmat(sgd.depth,1,nd)));
+sgd.chl2 = (param_c2(2)*sgd.chl2 + param_c2(1)).*(gompertzfun(beta3,repmat(sgd.depth,1,nd)));
+sgd.Properties.VariableUnits({'chl1','chl2'}) = {'ng chl-a L-1','ng chl-a L-1'};
+    % Plot comparison results
+%{
+subplot(2,2,1)
+plot(hplc_comp.chl1(ind_good),hplc_comp.TOTCHLA(ind_good)+hplc_comp.TPP(ind_good),'ko')
+hold on, plot([nanmin(hplc_comp.chl1) nanmax(hplc_comp.chl1)],param_c1(2)*[nanmin(hplc_comp.chl1) nanmax(hplc_comp.chl1)]+param_c1(1),'k--'), hold off
+xlabel('Seaglider Fluorescence 1'), ylabel('Total Photosynthetic Pigments(ng/L)'), set(gca,'Fontsize',18)
+lg = legend('data','robust fit'), set(lg,'box','off','Location','NorthWest','Fontsize',18)
+subplot(2,2,3)
+plot(hplc_comp.chl2(ind_good),hplc_comp.TOTCHLA(ind_good)+hplc_comp.TPP(ind_good),'ko')
+hold on, plot([nanmin(hplc_comp.chl2) nanmax(hplc_comp.chl2)],param_c2(2)*[nanmin(hplc_comp.chl2) nanmax(hplc_comp.chl2)]+param_c2(1),'k--'), hold off
+xlabel('Seaglider Fluorescence 2'), ylabel('Total Photosynthetic Pigments(ng/L)'), set(gca,'Fontsize',18)
+subplot(2,2,[2 4])
+plot(hplc_comp.TOTCHLA./hplc_comp.TPP,hplc_comp.DEPTH,'ko'),hold on, plot(gompertzfun(beta3,0:200),0:1:200,'k--'), hold off, set(gca,'ydir','rev','Fontsize',18)
+xlabel('Chlorophyll a / Total Photosynthetic Pigments(ng/ng)'), ylabel('Depth (m)')
+%}
+    
 % Compute characteristics on isopycnal levels (average sigma at depth bins)
     % compute average sigma at depth bins
 sig_grid = nanmean(sgd.sig,2);
