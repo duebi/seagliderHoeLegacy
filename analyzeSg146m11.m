@@ -280,3 +280,35 @@ hold off
 set(gca,'Fontsize',16)
 axis equal
 xlim([-161 -154]),ylim([19 26])
+
+%% Compute density ratio
+
+% Compute first derivatives (central finite difference)
+s1 = (sgd.s(3:end,:) - sgd.s(1:end-2,:))./(repmat(sgd.depth(3:end),1,nd) - repmat(sgd.depth(1:end-2),1,nd));
+s1 = [NaN(1,nd); s1; NaN(1,nd)];
+t1 = (sgd.t(3:end,:) - sgd.t(1:end-2,:))./(repmat(sgd.depth(3:end),1,nd) - repmat(sgd.depth(1:end-2),1,nd));
+t1 = [NaN(1,nd); t1; NaN(1,nd)];
+% Compute thermal expansion coefficient
+alpha = gsw_alpha_wrt_t_exact(sgd.s,sgd.t,sw_pres(repmat(sgd.depth,1,nd),sgd.lat));
+beta = gsw_beta_const_t_exact(sgd.s,sgd.t,sw_pres(repmat(sgd.depth,1,nd),sgd.lat));
+% Compute density ratio
+Rr = (alpha.*t1)./(beta.*s1);
+
+ind_part = merid1;
+subplot(2,1,1)
+contourf(dived.lat(ind_part),sgd.depth,sgd.o(:,ind_part),140:2.5:230,'edgecolor','none')
+set(gca,'ydir','rev','Fontsize',18)
+title('sg146 Meridional transect')
+ylim([0 350])
+hold on, contour(dived.lat(ind_part),sgd.depth,sgd.sig(:,ind_part),[23.5 24.3 25.3],'k-'), hold off
+xlabel('Latitude N'),ylabel('Depth (m)')
+caxis([196 230])
+cb = colorbar, title(cb,'Oxygen (umol L-1)'), set(cb,'Fontsize',18)
+subplot(2,1,2)
+contourf(dived.lat(ind_part),sgd.depth,Rr(:,ind_part),-1:0.5:5,'edgecolor','none')
+set(gca,'ydir','rev','ylim',[0 300],'Fontsize',18)
+caxis([-0.25 4.25])
+hold on, contour(dived.lat(ind_part),sgd.depth,sgd.sig(:,ind_part),[23.5 24.3 25.3],'k-','linewidth',2), hold off
+cb = colorbar; set(cb,'Fontsize',18),title(cb,'Density ratio')
+colormap(jet)
+xlabel('Latitude N'), ylabel('Depth (m)')
